@@ -1,62 +1,60 @@
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Cache-Control", "no-store");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
   if (req.method !== "POST") {
     return res.status(405).json({
-      error: "Please use POST to chat with JARVIS."
-    });
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return res.status(500).json({
-      error: "GEMINI_API_KEY is missing in Vercel Environment Variables."
+      error: "Method not allowed"
     });
   }
 
   try {
-    const { message } = req.body || {};
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
-    if (typeof message !== "string" || !message.trim()) {
-      return res.status(400).json({
-        error: "Please enter a message."
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "OPENROUTER_API_KEY is missing in Vercel"
       });
     }
 
+    const { message, history = [] } = req.body || {};
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({
+        error: "Please provide a message"
+      });
+    }
+
+    const messages = [
+      {
+        role: "system",
+        content:
+          "You are JARVIS, a helpful, intelligent AI assistant. Answer accurately, naturally, and clearly. You can speak Hindi, Hinglish, and English. Never claim to have searched the internet unless search results are provided."
+      },
+      ...history
+        .filter(
+          item =>
+            ["user", "assistant"].includes(item.role) &&
+            typeof item.content === "string"
+        )
+        .slice(-10),
+      {
+        role: "user",
+        content: message
+      }
+    ];
+
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+      "https://openrouter.ai/api/v1/chat/completions",
       {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
+          "HTTP-Referer": "https://jarvis-ai-rosy.vercel.app",
+          "X-OpenRouter-Title": "JARVIS AI"
         },
         body: JSON.stringify({
-          systemInstruction: {
-            parts: [
-              {
-                text: "You are JARVIS, a personal AI assistant created by Sourabh Mehra. Help users honestly and clearly. Reply in the user's language, including Hindi and Hinglish."
-              }
-            ]
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: message.trim().slice(0, 10000)
-                }
-              ]
-            }
-          ]
+          model: "openrouter/free",
+          messages,
+          temperature: 0.7
         })
       }
     );
@@ -64,35 +62,31 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Gemini API error:", response.status, data);
+      console.error("OpenRouter API error:", data);
 
-      return res.status(502).json({
-        error: "Gemini API request failed.",
-        details: data.error?.message || "Check model availability, API key, and quota.",
-        upstreamStatus: response.status
+      return res.status(response.status).json({
+        error:
+          data?.error?.message ||
+          "OpenRouter request failed"
       });
     }
 
-    const answer = data.candidates?.[0]?.content?.parts
-      ?.map(part => part.text || "")
-      .join("")
-      .trim();
+    const reply = data?.choices?.[0]?.message?.content;
 
-    if (!answer) {
+    if (!reply || typeof reply !== "string") {
       return res.status(502).json({
-        error: "Gemini returned an empty response."
+        error: "OpenRouter returned an empty response"
       });
     }
 
     return res.status(200).json({
-      reply: answer
+      reply: reply.trim()
     });
-
   } catch (error) {
-    console.error("JARVIS server error:", error.message);
+    console.error("JARVIS chat error:", error);
 
     return res.status(500).json({
-      error: "JARVIS encountered a server error."
+      error: "JARVIS server error. Please try again."
     });
   }
-}
+        }
