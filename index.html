@@ -1,14 +1,948 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JARVIS AI</title><style>
-*{box-sizing:border-box}body{margin:0;background:#101116;color:#eee;font:16px system-ui}.app{height:100dvh;display:flex}.side{width:230px;background:#171820;padding:16px;border-right:1px solid #30313b}.logo{font-size:24px;font-weight:800;margin:8px 0 25px}.logo span{color:#9887ff}button,input,textarea{font:inherit}button{cursor:pointer;background:#252630;color:#eee;border:1px solid #3a3b47;border-radius:12px;padding:10px}.main{flex:1;min-width:0;display:flex;flex-direction:column}.top{padding:16px;border-bottom:1px solid #30313b}.chat{flex:1;overflow:auto;padding:22px 14px 150px}.welcome{text-align:center;margin:10vh auto 0;max-width:700px}.welcome h1{font-size:clamp(28px,5vw,42px)}.muted{color:#aaa}.msgs{max-width:800px;margin:auto}.msg{display:flex;gap:12px;margin:22px 0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.icon{border-radius:50%;background:#292a39;width:32px;height:32px;display:grid;place-items:center;flex-shrink:0}.text{flex:1}.text img{display:block;max-width:100%;border-radius:14px;margin-top:10px}.compose{position:fixed;bottom:0;left:230px;right:0;padding:15px;background:linear-gradient(transparent,#101116 20%)}.box{max-width:800px;margin:auto;background:#1b1c24;border:1px solid #3b3c49;border-radius:18px;padding:10px}.box textarea{width:100%;background:transparent;color:white;border:0;outline:0;resize:none;padding:10px;min-height:48px}.row{display:flex;gap:8px;flex-wrap:wrap}.send{margin-left:auto;background:#8b7cff;border:0}.auth{position:fixed;inset:0;background:#101116;display:grid;place-items:center;padding:20px;z-index:3}.authbox{width:min(400px,100%);background:#1b1c24;border:1px solid #333;border-radius:18px;padding:22px}.authbox input{width:100%;padding:12px;margin:7px 0;background:#101116;color:white;border:1px solid #333;border-radius:10px}.hide{display:none!important}@media(max-width:650px){.side{display:none}.compose{left:0;padding:10px}.chat{padding:12px 10px 150px}}</style></head><body>
-<div class="app"><aside class="side"><div class="logo">✦ JARVIS<span> AI</span></div><button id="new">＋ New chat</button><p class="muted">Personal AI assistant</p><p class="muted">Created by Sourabh Mehra</p><button id="logout">Log out</button></aside><main class="main"><div class="top"><b>✦ JARVIS AI</b> <span class="muted">Personal Assistant</span></div><div class="chat" id="chat"><div class="welcome" id="welcome"><h1>How can I help you?</h1><p class="muted">Ask anything, use voice, or create an image.</p><button data-q="Explain AI in simple words">Explain AI</button> <button data-q="Open YouTube and play music">YouTube music</button></div><div class="msgs" id="msgs"></div></div><div class="compose"><div class="box"><textarea id="input" placeholder="Message JARVIS..." rows="1"></textarea><div class="row"><button id="image">▧ Image</button><button id="voice">🎙 Voice</button><button id="read">🔊 Read replies: On</button><button class="send" id="send">Send ↑</button></div></div><p class="muted" style="text-align:center;font-size:11px">Check important information. Free API usage limits may apply.</p></div></main></div>
-<div class="auth" id="auth"><div class="authbox"><div class="logo">✦ JARVIS<span> AI</span></div><h2 id="at">Create account</h2><form id="form"><input id="user" placeholder="Username" required minlength="3"><input id="email" type="email" placeholder="Email (sign up only)"><input id="pass" type="password" placeholder="Password (6+ characters)" required minlength="6"><button id="submit" style="width:100%">Create account</button></form><p><button id="switch">Already have an account? Log in</button></p><small class="muted">Demo-only login is stored in this browser and is not secure or synced. Do not use a real or reused password. Real accounts need a secure auth provider.</small><p id="err"></p></div></div>
-<script>
-const $=x=>document.getElementById(x);let signup=true,me=sessionStorage.getItem('jarvisUser'),read=true,rec=null,msgs=[];
-function mode(v){signup=v;$('at').textContent=v?'Create account':'Log in';$('submit').textContent=v?'Create account':'Log in';$('email').classList.toggle('hide',!v);$('email').required=v;$('switch').textContent=v?'Already have an account? Log in':'Create an account';$('err').textContent=''}$('switch').onclick=()=>mode(!signup);
-function boot(){if(me){$('auth').classList.add('hide')}else $('auth').classList.remove('hide')}boot();
-$('form').onsubmit=e=>{e.preventDefault();let u=$('user').value.trim(),p=$('pass').value,db=JSON.parse(localStorage.getItem('jarvisUsers')||'{}');if(signup){if(db[u])return $('err').textContent='Username already exists';db[u]={p,email:$('email').value};localStorage.setItem('jarvisUsers',JSON.stringify(db))}else if(!db[u]||db[u].p!==p)return $('err').textContent='Incorrect login; sign up on this browser first';me=u;sessionStorage.setItem('jarvisUser',u);boot()};
-$('logout').onclick=()=>{sessionStorage.removeItem('jarvisUser');me=null;boot()};function add(role,text,img){$('welcome').classList.add('hide');let r=document.createElement('div');r.className='msg';let i=document.createElement('div');i.className='icon';i.textContent=role==='user'?(me||'U')[0].toUpperCase():'J';let t=document.createElement('div');t.className='text';t.textContent=text||'';if(img){let im=document.createElement('img');im.src=img;t.append(im)}r.append(i,t);$('msgs').append(r);$('chat').scrollTop=$('chat').scrollHeight;return t}
-function command(s){if(/\b(open|launch|start)\s+(youtube|you tube)\b/i.test(s)){let m=s.match(/(?:play|song|music)\s+(.+)/i),q=m?m[1]:'music';window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(q),'_blank','noopener');return 'Opening YouTube search results for '+q+'. Tap a video to play it.'}if(/who (made|created|built) you|who is your creator|creator/i.test(s))return 'I was created by Sourabh Mehra.';return null}
-async function send(forceImage=false){let s=$('input').value.trim();if(!s)return;if(!me)return boot();$('input').value='';msgs.push({role:'user',text:s});add('user',s);let c=command(s);if(c){msgs.push({role:'assistant',text:c});add('assistant',c);return}$('send').disabled=true;let target=add('assistant',forceImage?'Generating image…':'Thinking…');try{let r=await fetch(forceImage?'/api/image':'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:s})}),d=await r.json();if(!r.ok)throw Error(d.error||d.details||'Request failed');target.textContent=forceImage?(d.text||'Image result'):d.reply||'No reply';if(forceImage&&d.image){let im=document.createElement('img');im.src=d.image;target.append(im)}msgs.push({role:'assistant',text:target.textContent});if(!forceImage&&read&&speechSynthesis){let u=new SpeechSynthesisUtterance(target.textContent);u.lang=/[\u0900-\u097F]/.test(target.textContent)?'hi-IN':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u)}}catch(e){target.textContent='JARVIS error: '+e.message+' Check Vercel GEMINI_API_KEY and redeploy.'}finally{$('send').disabled=false}}
-$('send').onclick=()=>send();$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};$('image').onclick=()=>{if(!$('input').value.trim())return alert('Describe your image first');send(true)};$('read').onclick=()=>{read=!read;$('read').textContent='🔊 Read replies: '+(read?'On':'Off')};$('voice').onclick=()=>{let R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert('Voice input not supported; try Chrome');if(rec){rec.stop();rec=null;return}rec=new R();rec.lang='hi-IN';rec.onresult=e=>$('input').value=e.results[0][0].transcript;rec.onend=()=>rec=null;rec.start()};$('new').onclick=()=>{$('msgs').innerHTML='';msgs=[];$('welcome').classList.remove('hide')};document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('input').value=b.dataset.q;$('input').focus()});
-</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080b12">
+<meta name="description" content="JARVIS AI - Your intelligent AI assistant">
+<title>JARVIS AI — Intelligent Assistant</title>
+
+<style>
+:root {
+  --bg: #080b12;
+  --panel: #0e1420;
+  --panel2: #111a29;
+  --border: rgba(135, 175, 220, .15);
+  --text: #edf5ff;
+  --muted: #8a9bb3;
+  --blue: #45b7ff;
+  --cyan: #61f1e8;
+  --purple: #9d85ff;
+  --danger: #ff667d;
+  --radius: 20px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 75% -10%, #132c4b 0, transparent 40%),
+    radial-gradient(ellipse at 0% 100%, #142035 0, transparent 35%),
+    var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+button, textarea, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  color: inherit;
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+/* APP LAYOUT */
+
+.app {
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 265px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 15px;
+  background: rgba(8, 12, 20, .92);
+  border-right: 1px solid var(--border);
+  transition: transform .25s ease;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 8px 25px;
+}
+
+.brand-logo {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: #04101b;
+  font-size: 21px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--cyan), var(--blue));
+  box-shadow: 0 0 28px #45b7ff35;
+}
+
+.brand h1 {
+  font-size: 17px;
+  letter-spacing: 2px;
+}
+
+.brand small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 3px;
+  margin-top: 3px;
+}
+
+.new-chat {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #45b7ff45;
+  background: linear-gradient(110deg, #173047, #142338);
+  border-radius: 13px;
+  text-align: left;
+  font-size: 13px;
+  transition: .2s;
+}
+
+.new-chat:hover {
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 25px #45b7ff15;
+}
+
+.side-label {
+  color: #667991;
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin: 27px 9px 12px;
+}
+
+.history {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.history-item {
+  width: 100%;
+  display: block;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 11px 10px;
+  margin-bottom: 5px;
+  border-radius: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.history-item:hover {
+  background: #ffffff08;
+  color: var(--text);
+}
+
+.sidebar-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+  margin-top: 15px;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #294d75, #7550a9);
+  font-weight: 700;
+}
+
+.profile strong {
+  display: block;
+  font-size: 12px;
+}
+
+.profile small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* MAIN */
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.topbar {
+  height: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 25px;
+  border-bottom: 1px solid var(--border);
+  background: #090e18a8;
+  backdrop-filter: blur(15px);
+}
+
+.top-left,
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-btn {
+  display: none;
+}
+
+.icon-btn {
+  width: 39px;
+  height: 39px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff05;
+  transition: .2s;
+}
+
+.icon-btn:hover {
+  background: #45b7ff16;
+  border-color: #45b7ff65;
+}
+
+.top-title {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: #a3b5c9;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5ce7b0;
+  box-shadow: 0 0 12px #5ce7b0;
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding: 30px 20px 20px;
+}
+
+.chat-content {
+  max-width: 850px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* WELCOME SCREEN */
+
+.welcome {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 35px 0 55px;
+}
+
+.reactor {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 28px;
+  background: radial-gradient(circle, #18364c, #0a1422 65%);
+  border: 1px solid #56dfff55;
+  box-shadow: 0 0 45px #32baff12, inset 0 0 30px #32baff10;
+  animation: float 4s ease-in-out infinite;
+}
+
+.reactor::before,
+.reactor::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border: 1px solid #45b7ff50;
+  border-radius: 50%;
+  animation: spin 12s linear infinite;
+  border-top-color: var(--cyan);
+  border-bottom-color: transparent;
+}
+
+.reactor::after {
+  inset: -17px;
+  border-color: #9d85ff35;
+  border-right-color: var(--purple);
+  animation-direction: reverse;
+  animation-duration: 18s;
+}
+
+.reactor-core {
+  font-size: 42px;
+  color: var(--cyan);
+  text-shadow: 0 0 24px #61f1e8;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.eyebrow {
+  color: var(--cyan);
+  letter-spacing: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.welcome h2 {
+  font-size: clamp(30px, 5vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -1.5px;
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #fff, var(--cyan), var(--blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.welcome-description {
+  max-width: 420px;
+  line-height: 1.8;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 17px;
+}
+
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  width: 100%;
+  max-width: 620px;
+  margin-top: 36px;
+}
+
+.suggestion {
+  text-align: left;
+  padding: 17px;
+  background: linear-gradient(135deg, #111d2b, #0c1420);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  transition: .2s;
+}
+
+.suggestion:hover {
+  transform: translateY(-3px);
+  border-color: #61f1e850;
+  background: #142337;
+}
+
+.suggestion-icon {
+  font-size: 19px;
+  margin-bottom: 11px;
+}
+
+.suggestion strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.suggestion span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* MESSAGES */
+
+.message {
+  display: flex;
+  gap: 13px;
+  margin: 0 0 28px;
+  animation: appear .25s ease;
+}
+
+@keyframes appear {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message-avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #172638;
+  border: 1px solid var(--border);
+}
+
+.message.user .message-avatar {
+  background: #273a5c;
+}
+
+.message-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.message-name {
+  font-size: 11px;
+  font-weight: 700;
+  margin: 2px 0 10px;
+}
+
+.message.user .message-name {
+  color: #9fbdff;
+}
+
+.message.assistant .message-name {
+  color: var(--cyan);
+}
+
+.message-text {
+  font-size: 13px;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: #dce7f5;
+}
+
+.message-text a {
+  color: var(--cyan);
+}
+
+.message-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.small-action {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 9px;
+  background: #ffffff04;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.small-action:hover {
+  color: var(--text);
+  border-color: #45b7ff70;
+}
+
+.typing {
+  display: inline-flex;
+  gap: 5px;
+  padding: 8px 0;
+}
+
+.typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: pulse 1s infinite alternate;
+}
+
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes pulse {
+  from { opacity: .3; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(-4px); }
+}
+
+/* SOURCES */
+
+.sources {
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #0b1521;
+}
+
+.sources-title {
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.source-link {
+  display: block;
+  padding: 10px;
+  margin-top: 7px;
+  border-radius: 9px;
+  text-decoration: none;
+  background: #ffffff04;
+  border: 1px solid #ffffff0c;
+}
+
+.source-link:hover {
+  background: #45b7ff12;
+  border-color: #45b7ff40;
+}
+
+.source-link strong {
+  display: block;
+  font-size: 11px;
+  color: #dceaff;
+  overflow-wrap: anywhere;
+}
+
+.source-link small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+/* COMPOSER */
+
+.composer-wrap {
+  flex-shrink: 0;
+  padding: 12px 20px 17px;
+  background: linear-gradient(transparent, #080b12 18%);
+}
+
+.composer {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 12px;
+  border: 1px solid #526b8850;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #121c2a, #0d1420);
+  box-shadow: 0 12px 45px #0003;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.composer:focus-within {
+  border-color: #45b7ff80;
+  box-shadow: 0 0 0 3px #45b7ff0b;
+}
+
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 43px;
+  max-height: 150px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 9px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.composer textarea::placeholder {
+  color: #71849d;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.tool-group {
+  display: flex;
+  gap: 6px;
+}
+
+.tool-btn {
+  min-width: 37px;
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 0 10px;
+  background: transparent;
+  color: #8ea4bf;
+  font-size: 11px;
+  transition: .2s;
+}
+
+.tool-btn:hover,
+.tool-btn.active {
+  color: var(--cyan);
+  background: #45b7ff0d;
+  border-color: #45b7ff35;
+}
+
+.send-btn {
+  width: 42px;
+  height: 39px;
+  border: 0;
+  border-radius: 12px;
+  color: #06111c;
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--cyan), var(--blue));
+  box-shadow: 0 0 20px #45b7ff20;
+  transition: .2s;
+}
+
+.send-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px #45b7ff40;
+}
+
+.send-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.disclaimer {
+  max-width: 850px;
+  margin: 10px auto 0;
+  text-align: center;
+  color: #61728a;
+  font-size: 9px;
+}
+
+#imagePreview {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#imagePreview img {
+  max-width: 70px;
+  max-height: 55px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+#removeImage {
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 760px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 270px;
+    transform: translateX(-105%);
+    box-shadow: 15px 0 60px #0006;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .menu-btn {
+    display: inline-block;
+  }
+
+  .topbar {
+    height: 62px;
+    padding: 0 13px;
+  }
+
+  .top-title {
+    font-size: 12px;
+  }
+
+  .connection {
+    font-size: 9px;
+  }
+
+  .chat-scroll {
+    padding: 20px 14px;
+  }
+
+  .welcome {
+    padding: 25px 0;
+  }
+
+  .reactor {
+    width: 90px;
+    height: 90px;
+  }
+
+  .reactor-core {
+    font-size: 34px;
+  }
+
+  .welcome h2 {
+    font-size: 34px;
+  }
+
+  .welcome-description {
+    font-size: 12px;
+  }
+
+  .suggestions {
+    gap: 8px;
+    margin-top: 25px;
+  }
+
+  .suggestion {
+    padding: 13px;
+  }
+
+  .suggestion strong {
+    font-size: 11px;
+  }
+
+  .suggestion span {
+    font-size: 10px;
+  }
+
+  .composer-wrap {
+    padding: 8px 10px 12px;
+  }
+
+  .composer {
+    border-radius: 17px;
+  }
+
+  .tool-btn {
+    min-width: 32px;
+    padding: 0 7px;
+  }
+
+  .message {
+    gap: 9px;
+  }
+
+  .message-avatar {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 360px) {
+  .suggestions {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-btn.label-tool {
+    font-size: 0;
+  }
+
+  .tool-btn.label-tool:first-letter {
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+
+    <div class="brand">
+      <div class="brand-logo">J</div>
+      <div>
+        <h1>JARVIS AI</h1>
+        <small>INTELLIGENCE SYSTEM</small>
+      </div>
+    </div>
+
+    <button class="new-chat" id="newChat">
+      ＋ &nbsp; New conversation
+    </button>
+
+    <div class="side-label">RECENT CONVERSATIONS</div>
+    <div class="history" id="history"></div>
+
+    <div class="sidebar-bottom">
+      <div class="profile">
+        <div class="avatar">J</div>
+        <div>
+          <strong>JARVIS Assistant</strong>
+          <small>AI System Online</small>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <header class="topbar">
+
+      <div class="top-left">
+        <button class="icon-btn menu-btn" id="menuBtn"
+          aria-label="Open menu">☰</button>
+
+        <div>
+          <div class="top-title">JARVIS Intelligence</div>
+          <div class="connection">
+            <span class="dot"></span>
+            Assistant interface ready
+          </div>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <button class="icon-btn" id="clearBtn"
+          title="New chat" aria-label="New chat">＋</button>
+      </div>
+
+    </header>
+
+    <section class="chat-scroll" id="chatScroll">
+      <div class="chat-content" id="chatContent">
+
+        <div class="welcome" id="welcome">
+
+          <div class="reactor">
+            <div class="reactor-core">✳</div>
+          </div>
+
+          <div class="eyebrow">PERSONAL AI ASSISTANT</div>
+
+          <h2>
+            Hello, I'm <span class="gradient-text">JARVIS.</span>
+          </h2>
+
+          <p class="welcome-description">
+            Your intelligent companion for ideas, learning,
+            coding, research and creativity. What shall we
+            explore today?
+          </p>
+
+          <div class="suggestions">
+
+            <button class="suggestion" data-prompt="Explain artificial intelligence in simple Hindi with examples.">
+              <div class="suggestion-icon">✦</div>
+              <strong>Learn something new</strong>
+              <span>Understand complex topics simply.</span>
+            </button>
+
+            <button class="suggestion" data-prompt="Help me build an advanced Python project that can run on Android using Pydroid 3.">
+              <div class="suggestion-icon">⌘</div>
+              <strong>Build with code</strong>
+              <span>Explore Python and development.</span>
+            </button>
+
+            <button class="suggestion" data-prompt="Give me creative ideas for a futuristic personal AI assistant website.">
+              <div class="suggestion-icon">◈</div>
+              <strong>Explore ideas</strong>
+              <span>Turn your ideas into projects.</span>
+            </button>
+
+            <button class="suggestion" data-prompt="Search the web for the latest technology news and provide the original source links.">
+              <div class="suggestion-icon">◎</div>
+              <strong>Research online</strong>
+              <span>Explore current information and sources.</span>
+            </button>
+
+          </div>
+        </div>
+
+        <div id="messages"></div>
+
+      </div>
+    </section>
+
+    <!-- INPUT AREA -->
+    <footer class="composer-wrap">
+
+      <div class="composer">
+
+        <div id="imagePreview">
+          <img id="previewImg" alt="Selected image preview">
+          <span id="previewName"></span>
+          <button id="removeImage" type="button">✕ Remove</button>
+        </div>
+
+        <textarea
+          id="prompt"
+          rows="1"
+          placeholder="Message JARVIS... Ask anything"
+          aria-label="Message JARVIS"
+        ></textarea>
+
+        <div class="composer-tools">
+
+          <div class="tool-group">
+
+            <button class="tool-btn" id="voiceBtn"
+              title="Voice input" aria-label="Voice input">🎙</button>
+
+            <button class="tool-btn" id="speakBtn"
+             
